@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple HTTP Client</title>
+</head>
+<body>
+<h2>HTTP Client</h2>
+
+<!-- 请求方法选择框 -->
+<label for="method">Request Method:</label>
+<select id="method">
+    <option value="GET">GET</option>
+    <option value="POST">POST</option>
+</select><br><br>
+
+<!-- 服务器 URL 输入框 -->
+<label for="url">URL:</label>
+<input type="text" id="url" placeholder="Enter URL"><br><br>
+
+<!-- POST 数据输入框 -->
+<label for="data">POST Data:</label><br>
+<textarea id="data" rows="4" cols="50" placeholder="Enter data for POST request"></textarea><br><br>
+
+<!-- 发送请求按钮 -->
+<button onclick="sendRequest()">Send Request</button><br><br>
+
+<!-- 显示响应的文本区域 -->
+<label>Response:</label><br>
+<textarea id="response" rows="10" cols="50" readonly></textarea>
+
+<!-- 引入 JavaScript 文件 -->
+<script src="script.js"></script>
+</body>
+</html>
