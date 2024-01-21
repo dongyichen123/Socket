@@ -1,0 +1,210 @@
+import java.io.*;
+import java.lang.management.GarbageCollectorMXBean;
+import java.net.Socket;
+import java.util.HashMap;
+
+public class Client {
+    public static Socket client = null;
+    private static HashMap<String, String> storageRedirect = new HashMap<>();
+    public static void main (String[] args){
+        String serverHost =  "114.212.203.205";
+        String clientHost="127.0.0.1";
+
+        String requestOP = "GET";
+        String requestPath = "/login";
+        int serverPort = 8090;
+        String data = "name=nju";
+        if(requestOP.equals("GET")){
+
+            GET(serverHost,serverPort,requestPath);
+        }else{
+
+            POST(serverHost,serverPort,requestPath,data);
+        }
+
+
+    }
+    public static  void GET(String serverHost,int serverPort,String requestPath){
+        try{
+            String trueRequestPath=null;
+            //连接
+            if(storageRedirect.containsKey(serverHost + ":" + serverPort + requestPath)) {
+                trueRequestPath = storageRedirect.get(serverHost + ":" + serverPort + requestPath);
+                System.out.println("已重定向");
+            }else{
+                trueRequestPath=requestPath;
+            }
+            System.out.println("连接到主机"+serverHost+",端口号："+serverPort);
+            client=new Socket(serverHost,80);
+            System.out.println("已连接，local host:"+client.getLocalAddress()+",local port:"+client.getLocalPort());
+            //发送请求
+            OutputStream outToServer= client.getOutputStream();
+            PrintWriter out= new PrintWriter(outToServer);
+            out.println("GET"+" "+trueRequestPath+" HTTP/1.1");
+            out.println("Host: "+serverHost);
+            out.println("Connection: close");
+            out.println("");
+            out.flush();
+
+            //接收响应
+            InputStream inFromServer= client.getInputStream();
+            InputStreamReader in = new InputStreamReader(inFromServer);
+            BufferedReader reader = new BufferedReader(in);
+            String line = null;
+
+            boolean isHeader=true;
+            String responseHeader=null;
+            String  truePath = null;
+            String contentType=null;
+            while((line=reader.readLine())!=null){
+                System.out.println(line);
+                if(isHeader){
+                    responseHeader=line;
+                    isHeader=false;
+                }else if(line.startsWith("Location")){
+                    truePath=line.substring(line.lastIndexOf(":")+2);
+                }else if(line.startsWith("Content-Type:")){
+                    contentType=line.substring(line.lastIndexOf(":")+2);
+                }
+                if(line.equals("")){
+                    break;
+                }
+            }
+            System.out.println("over");
+
+            //解析响应
+            String[] infos = responseHeader.split(" ");
+            String statusCode = infos[1];
+            switch(statusCode){
+                case "200":
+                    System.out.println("data:");
+                    StringBuilder data = new StringBuilder();
+                    while((line=reader.readLine())!=null){
+                        System.out.println(line);
+                        data.append(line);
+                    }
+                    MIME mime = new MIME(contentType,new String(data),serverHost,trueRequestPath);
+                    mime.show();
+                    break;
+                case "301":
+                    System.out.println("301:永久移动，重定向");
+                    storageRedirect.put(serverHost+':'+serverPort+requestPath, truePath);
+                    GET(serverHost,serverPort,truePath);
+                    break;
+                case "302":
+                    System.out.println("302:临时移动，重定向");
+                    GET(serverHost,serverPort,truePath);
+                    break;
+                case "304":
+                    MIME mime304 = new MIME(contentType,null,serverHost,trueRequestPath);
+                    mime304.show();
+                    break;
+                case "404":
+                    System.out.println("404:服务器未找到请求的网页");
+
+                    break;
+                case "405":
+                    System.out.println("405:请求方法被禁用");
+                    break;
+                case "500":
+                    System.out.println("500:服务器内部错误");
+                    break;
+
+            }
+            client.close();
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+
+    }
+    public static  void POST(String serverHost,int serverPort,String requestPath,String data){
+        try{
+
+            System.out.println("POST");
+            //连接
+            String trueRequestPath=null;
+            //连接
+            if(storageRedirect.containsKey(serverHost + ":" + serverPort + requestPath)) {
+                trueRequestPath = storageRedirect.get(serverHost + ":" + serverPort + requestPath);
+                System.out.println("已重定向");
+            }else{
+                trueRequestPath=requestPath;
+            }
+            System.out.println("连接到主机"+serverHost+",端口号："+serverPort);
+            client=new Socket(serverHost,80);
+            System.out.println("已连接，local host:"+client.getLocalAddress()+",local port:"+client.getLocalPort());
+            //发送请求
+            OutputStream outToServer= client.getOutputStream();
+            PrintWriter out= new PrintWriter(outToServer);
+            out.println("POST"+" "+trueRequestPath+" HTTP/1.1");
+            out.println("Host: "+serverHost);
+            out.println("Content-Type: application/x-www-form-urlencoded");
+            out.println("Connection: keep-alive");
+            out.println();
+            out.println(data);//想要上传的数据
+            out.println();
+            out.flush();
+            //接收响应
+            InputStream inFromServer= client.getInputStream();
+            InputStreamReader in = new InputStreamReader(client.getInputStream());
+            BufferedReader reader = new BufferedReader(in);
+            String line = null;
+
+            boolean isHeader=true;
+            String responseHeader=null;
+            String  truePath = null;
+            while((line=reader.readLine())!=null){
+                System.out.println(line);
+                if(isHeader){
+                    responseHeader=line;
+                    isHeader=false;
+                }else{
+                    if (line.startsWith("Location")){
+                        truePath=line.substring(line.lastIndexOf(":")+2);
+                    }
+                }
+                if(line.equals("")){
+                    break;
+                }
+            }
+            System.out.println("over");
+            //解析响应
+            String[] infos = responseHeader.split(" ");
+            String statusCode = infos[1];
+            switch(statusCode){
+                case "200":
+                    System.out.println("data:");
+                    while((line=reader.readLine())!=null){
+                        System.out.println(line);
+                    }
+                    break;
+                case "301":
+                    System.out.println("301:永久移动，重定向");
+                    storageRedirect.put(serverHost+':'+serverPort+requestPath, truePath);
+                    GET(serverHost,serverPort,truePath);
+                    break;
+                case "302":
+                    System.out.println("302:临时移动，重定向");
+                    GET(serverHost,serverPort,truePath);
+                    break;
+                case "304":
+                    break;
+                case "404":
+                    System.out.println("404:服务器未找到请求的网页");
+
+                    break;
+                case "405":
+                    System.out.println("405:请求方法被禁用");
+                    break;
+                case "500":
+                    System.out.println("500:服务器内部错误");
+                    break;
+
+            }
+            client.close();
+        }catch(IOException e){
+            e.printStackTrace();
+        }
+
+    }
+}
